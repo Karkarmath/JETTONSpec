@@ -35,38 +35,41 @@ RandomInit == \E U \in SUBSET(Users), NBM \in 0..3, su \in 0..MaxTotalSupply : /
                                                                                /\ BurnMintMemory = [i \in 1..NBM |-> CHOOSE x \in -MaxTotalSupply..MaxTotalSupply : TRUE]
                                                                                /\ SumMap(BurnMintMemory) = su       
 
-NewUserJWallet == \E user \in Users : /\ user \notin DOMAIN Map  
-                                      /\ Map' = [u \in (DOMAIN Map) \cup {user} |-> IF u = user THEN 0 ELSE Map[u]]
-                                      /\ UNCHANGED <<TotalSupply, Mintable, BurnMintMemory>>
+NewUserJWallet(user) == /\ user \notin DOMAIN Map  
+                        /\ Map' = [u \in (DOMAIN Map) \cup {user} |-> IF u = user THEN 0 ELSE Map[u]]
+                        /\ UNCHANGED <<TotalSupply, Mintable, BurnMintMemory>>
 
-CLoseMint == /\ Mintable = TRUE
+Mint(user, amount) ==   /\ Mintable = TRUE
+                        /\ TotalSupply + amount <= MaxTotalSupply 
+                        /\ TotalSupply' = TotalSupply + amount
+                        /\ BurnMintMemory' = Append(BurnMintMemory, amount) 
+                        /\ Map' = [Map EXCEPT ![user] = @ + amount]
+                        /\ UNCHANGED Mintable
+
+Burn(user, amount) ==   /\ Map[user] >= amount 
+                        /\ TotalSupply' = TotalSupply - amount 
+                        /\ BurnMintMemory' = Append(BurnMintMemory, -amount)
+                        /\ Map' = [Map EXCEPT ![user] = @ - amount]
+                        /\ UNCHANGED Mintable
+
+Transfer(userfr, userto, amount) == /\ Map[userfr] >= amount 
+                                    /\ IF userfr = userto THEN UNCHANGED vars 
+                                                          ELSE /\ Map' = [Map EXCEPT ![userfr] = @ - amount, ![userto] = @ + amount]
+                                                               /\ UNCHANGED <<Mintable, TotalSupply, BurnMintMemory>>
+
+CloseMint == /\ Mintable = TRUE
              /\ Mintable' = FALSE
              /\ UNCHANGED <<Map, TotalSupply, BurnMintMemory>>
 
-Mint == \E user \in DOMAIN Map, amount \in 0..MaxTotalSupply : /\ Mintable = TRUE
-                                                               /\ TotalSupply + amount <= MaxTotalSupply 
-                                                               /\ TotalSupply' = TotalSupply + amount
-                                                               /\ BurnMintMemory' = Append(BurnMintMemory, amount) 
-                                                               /\ Map' = [Map EXCEPT ![user] = @ + amount]
-                                                               /\ UNCHANGED Mintable
-
-Burn == \E user \in DOMAIN Map, amount \in 0..TotalSupply : /\ Map[user] >= amount 
-                                                            /\ TotalSupply' = TotalSupply - amount 
-                                                            /\ BurnMintMemory' = Append(BurnMintMemory, -amount)
-                                                            /\ Map' = [Map EXCEPT ![user] = @ - amount]
-                                                            /\ UNCHANGED Mintable
-
-Transfer == \E userfr, userto \in DOMAIN Map, amount \in 0..TotalSupply : (/\ Map[userfr] >= amount 
-                                                                           /\ IF userfr = userto THEN UNCHANGED vars 
-                                                                              ELSE /\ Map' = [Map EXCEPT ![userfr] = @ - amount, ![userto] = @ + amount]
-                                                                                   /\ UNCHANGED <<Mintable, TotalSupply, BurnMintMemory>>)
-
-Next == NewUserJWallet \/ CLoseMint \/ Burn \/ Mint \/ Transfer     
+Next == \/ \E user \in Users : NewUserJWallet(user)
+        \/ \E user \in DOMAIN Map : ((\E amount \in 0..MaxTotalSupply : Mint(user, amount)) \/ (\E amount \in 0..TotalSupply : Burn(user, amount)))
+        \/ \E userfr, userto \in DOMAIN Map, amount \in 0..TotalSupply : Transfer(userfr, userto, amount)
+        \/ CloseMint     
 
 TotalSupplyConstraint == TotalSupply <= MaxTotalSupply /\ TotalSupply = SumMap(Map)
                                                        /\ TotalSupply = SumMap(BurnMintMemory)
 
-NoMint == []((Mintable = FALSE) => [](~ ENABLED Mint))
+NoMint == []((Mintable = FALSE) => [](\A user \in DOMAIN Map, amount \in 0..MaxTotalSupply : ~ ENABLED Mint(user, amount)))
 
 NewUserNoBalance == [][IF Cardinality(DOMAIN Map) < Cardinality(DOMAIN Map') THEN (\A u \in (DOMAIN Map' \ DOMAIN Map) : Map'[u] = 0) /\ \A v \in DOMAIN Map : Map[v] = Map'[v] ELSE TRUE]_vars
 
