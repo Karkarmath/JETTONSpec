@@ -96,6 +96,3 @@ Spec == Init /\ [][Next]_vars
 RandomSpec == RandomInit /\ [][Next]_vars
 
 =============================================================================
-\* Modification History
-\* Last modified Mon Jun 09 10:50:14 MSK 2025 by aleks
-\* Created Mon Jun 02 21:53:01 MSK 2025 by aleks
