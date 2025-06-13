@@ -26,7 +26,7 @@ TypeOK == /\ DOMAIN Map \subseteq Users /\ \A u \in DOMAIN Map : Map[u] \in Nat
 Init == /\ Map = [x \in {} |-> 0]
         /\ TotalSupply = 0
         /\ Mintable = TRUE
-        /\ BurnMintMemory = <<>>
+        /\ BurnMintMemory = << >>
 
 RandomInit == \E U \in SUBSET(Users), NBM \in 0..3, su \in 0..MaxTotalSupply : /\ Map = [u \in U |-> CHOOSE x \in 0..MaxTotalSupply : TRUE]
                                                                                /\ TotalSupply = su
